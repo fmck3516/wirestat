@@ -27,6 +27,11 @@ wirestat is not another smart thermostat. It is actually pretty dumb:
 wirestat continuously monitors your thermostat. When it detects a call (e.g., a call for cooling), it relays the command
 to your mini split's indoor unit (IDU) via an infrared signal.
 
+Examples:
+- Thermostat calls for Stage 1 Cooling -> send "Cool / 70 Degree / Fan Low" to IDU
+- Thermostat calls for Stage 2 Cooling -> send "Cool / 70 Degree / Fan Auto" to IDU
+- Thermostat calls for Fan => send "Fan Auto" to IDU
+
 ## Media
 
 [![wirestat video](images/wirestat-youtube.png)](http://www.youtube.com/watch?v=b3PyWUqDRN4 "wirestat + MrCool 4th gen + Ecobee")
@@ -68,12 +73,14 @@ Example:
 | 0/1 | 0/1 | 0/1 | 0   | 0   | 1   | 0   | Heat (74F) / Fan (low)  |
 | 0/1 | 0/1 | 0/1 | 0   | 0   | 0   | 1   | Heat (74F) / Fan (high) |
 
-# :warning: Warning :warning:
+
+# Resources
+
+## :warning: Warning :warning:
 
 wirestat is an experimental hobby project. I've put it together without a background in electrical engineering - use the
 provided circuit, firmware and enclosure at your own risk.
 
-# Resources
 
 ## Firmware
 
