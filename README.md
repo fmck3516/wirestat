@@ -27,6 +27,15 @@ wirestat is not another smart thermostat. It is actually pretty dumb:
 wirestat continuously monitors your thermostat. When it detects a call (e.g., a call for cooling), it relays the command
 to your mini split's indoor unit (IDU) via an infrared signal.
 
+## Media
+
+[![wirestat video](images/wirestat-youtube.png)](http://www.youtube.com/watch?v=b3PyWUqDRN4 "wirestat + MrCool 4th gen + Ecobee")
+
+![wirestat in action](images/wirestat-in-action.png?raw=true)
+
+![wirestat disassembled](images/wirestat-disassembled.png?raw=true)
+
+
 ### Configuration
 
 wirestat supports the following inputs:
@@ -44,51 +53,20 @@ wirestat supports the following inputs:
 It's fine if you thermostat does not support all of the above inputs. If you thermostat only supports a single stage for
 fan, cooling and heating, you only need to wire G1, Y1 and W1.
 
-Using a configuration file on SD Card, each relevant input scenario is mapped to an infrared signal for the IDU:
-
-| G1  | G2  | G3  | Y1 | Y2 | W1 | W2 | Infrared Signal for IDU |
-|-----|-----|-----|----|----|----|----|-------------------------|
-| 0   | 0   | 0   | 0  | 0  | 0  | 0  | OFF                     |
-| 1   | 0   | 0   | 0  | 0  | 0  | 0  | Fan (low)               |
-| 0   | 1   | 0   | 0  | 0  | 0  | 0  | Fan (medium)            |
-| 0   | 0   | 1   | 0  | 0  | 0  | 0  | Fan (high)              |
-| *   | *   | *   | 1  | 0  | 0  | 0  | Cool (72F) / Fan (low) |
-| *   | *   | *   | 0  | 1  | 0  | 0  | Cool (72F) / Fan (high) |
-| *   | *   | *   | 0  | 0  | 1  | 0  | Heat (74F) / Fan (low)  |
-| *   | *   | *   | 0  | 0  | 0  | 1  | Heat (74F) / Fan (high) |
-
-Meaning of the symbols in the cells:
-- 0: input inactive 
-- 1: input active
-- *: input active or inactive
-
-### Temperature Setting
-
-**Cooling Temperature**: The cooling temperature in the configuration must be set to the lowest temperature your 
-thermostat is programmed to request. 72F is a reasonable default that should work for most scenarios. 
+Each relevant input scenario is mapped to an infrared signal for the IDU.
 
 Example:
 
-- **Daytime**: Thermostat set to cooling at 76°F.
-- **Nighttime**: Thermostat set to cooling at 72°F.
-
-In this case, you must set the cooling temperature in the configuration file to the lowest set point (72°F). This won't
-cause the temperature to drop below 76°F during the day. wirestat will stop the cooling call once the thermostat reaches 
-76°F. The purpose is to ensure that your mini split’s indoor unit enters cooling mode whenever your thermostat calls for
-it.
-
-**Heating Temperature**: The heating temperature in the configuration file must be set to the highest 
-temperature your thermostat is programmed to request. 72F is a reasonable default that should work for most scenarios.
-
-Example:
-
-- **Daytime**: Thermostat set to heating at 72°F.
-- **Nighttime**: Thermostat set to heating at 68°F.
-
-In this scenario, you must set the heating temperature in the configuration file to the highest set point (72°F). This 
-won’t cause the temperature to exceed 68°F during the night. WireStat will stop the heating call once the thermostat
-reaches  68°F. This setting ensures your indoor unit switches to heating mode whenever your thermostat calls for
-heating.
+| G1  | G2  | G3  | Y1  | Y2  | W1  | W2  | Infrared Signal for IDU |
+|-----|-----|-----|-----|-----|-----|-----|-------------------------|
+| 0   | 0   | 0   | 0   | 0   | 0   | 0   | OFF                     |
+| 1   | 0   | 0   | 0   | 0   | 0   | 0   | Fan (low)               |
+| ... | ... | ... | ... | ... | ... | ... | ...                     |
+| 0/1 | 0/1 | 0/1 | 1   | 0   | 0   | 0   | Cool (72F) / Fan (low)  |
+| 0/1 | 0/1 | 0/1 | 0   | 1   | 0   | 0   | Cool (72F) / Fan (high) |
+| ... | ... | ... | ... | ... | ... | ... | ...                     |
+| 0/1 | 0/1 | 0/1 | 0   | 0   | 1   | 0   | Heat (74F) / Fan (low)  |
+| 0/1 | 0/1 | 0/1 | 0   | 0   | 0   | 1   | Heat (74F) / Fan (high) |
 
 # :warning: Warning :warning:
 
@@ -111,6 +89,18 @@ Source: [wirestat.kicad_sch](schematics/wirestat.kicad_sch)
 
 ![schematics.png](schematics/schematics.png?raw=true)
 
+## Enclosure
+
+The enclosure was designed in [Blender](https://www.blender.org) and printed on a
+[Bambu Lab X1 Carbon](https://bambulab.com/en-us/x1) 3D printer.
+
+Blender file:
+- [enclosure.blend](enclosure/enclosure.blend)
+
+STL exports:
+- [base.stl](enclosure/base.stl)
+- [lid.stl](enclosure/lid.stl)
+- [thermostat-cover-plate.stl](enclosure/thermostat-cover-plate.stl)
 
 ## Power Supply
 
@@ -139,7 +129,8 @@ Accordingly, I do not have a datasheet for those components.
 
 # Reverse engineering of infrared commands
 
-t.b.d.
+I used [IRrecvDumpV2](https://github.com/crankyoldgit/IRremoteESP8266/blob/master/examples/IRrecvDumpV2/IRrecvDumpV2.ino)
+to reverse engineer the infrared commands for my indoor unit.
 
 # Open Questions
 
