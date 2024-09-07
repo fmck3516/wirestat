@@ -50,23 +50,16 @@ const int PREVIOUS = 1;
 const int PRE_PREVIOUS = 2;
 const int PRE_PRE_PREVIOUS = 3;
 
-// The last 4 calls:
-//
-// calls[0]: current call
-// calls[1]: previous call
-// calls[2]: pre-previous call
-// calls[3]: pre-previous call
-//
-int call[] = { CALL_UNKNOWN, CALL_UNKNOWN, CALL_UNKNOWN, CALL_UNKNOWN };
+// How many of the recently made calls to keep track of.
+const int CALL_HISTORY = 8;
 
-// The timestamps when the last 4 calls started:
-//
-// callStart[0]: start of current call
-// callStart[1]: start of previous call
-// callStart[2]: start of pre-previous call
-// callStart[3]: start of pre-pre-previous call
-//
-int callStart[] = { -1, -1, -1, -1 };
+// History of the ${CALL_HISTORY} calls. 
+// Index 0 point to the current call.
+int call[CALL_HISTORY];
+
+// The timestamps when the last ${CALL_HISTORY} calls started. 
+// Index 0 point to the start of the current call.
+int callStart[CALL_HISTORY];
 
 IRsend irsend(PIN_IR_TRANSMITTER);
 LiquidCrystal_I2C lcd(0x27, LCD_COLUMNS, LCD_ROWS);
@@ -125,11 +118,13 @@ const uint16_t MR_COOL_GEN4_COOL_75F_FAN_MEDIUM[199] = { 4416, 4366,  558, 1592,
   498,  554, 518,  556, 516,  556, 520,  554, 520,  554, 518,  554, 518,  554, 520,  554, 520,  554, 518,  556, 520,  552, 522,  552, 520,  554, 1594,  552, 522,  554, 
   520,  552, 524,  548, 526,  550, 522,  552, 1598,  550, 524,  550 }; 
 
-
-
 void setup() {
   irsend.begin();
   Serial.begin(115200, SERIAL_8N1);
+  for (int i = 0; i < sizeof call / sizeof call[0]; i++) {
+    call[i] = CALL_UNKNOWN;
+    callStart[i] = -1;
+  }
   for (int i = 0; i < sizeof PIN_THERMOSTAT / sizeof PIN_THERMOSTAT[0]; i++) {
     pinMode(PIN_THERMOSTAT[i], INPUT_PULLUP);
   }
@@ -140,7 +135,7 @@ void setup() {
 
 void loop() {
   readThermostat();
-  updateDisplay();
+  displayCallHistory();
   delay(100);
 }
 
@@ -171,33 +166,34 @@ void readThermostat() {
   }
 }
 
-void updateDisplay() {
-  updateLine(0, CURRENT, "CURR");
-  updateLine(1, PREVIOUS, "PREV");
-  updateLine(2, PRE_PREVIOUS, "PPRV");
-  updateLine(3, PRE_PRE_PREVIOUS, "P3RV");
+void displayCallHistory() {
+  for (int i = 0; i < CALL_HISTORY; i++) {
+     displayCall(i);
+  }
 }
 
-void updateLine(int line, int callIndex, String prefix) {
-  lcd.setCursor(0, line);
+void displayCall(int callIndex) {
+  int row = callIndex > 3 ? 11 : 0;
+  int line = callIndex % 4;
+  lcd.setCursor(row, line);
+  lcd.print(String(callIndex) + "=");  
   switch (call[callIndex]) {
     case CALL_OFF:
-      lcd.print(prefix + ": OFF  ");
+      lcd.print("OF");
       break;
     case CALL_FAN:
-      lcd.print(prefix + ": FAN  ");
+      lcd.print("FA");
       break;
     case CALL_COOL_STAGE_1:
-      lcd.print(prefix + ": COOL1");
+      lcd.print("C1");
       break;
     case CALL_COOL_STAGE_2:
-      lcd.print(prefix + ": COOL2");
+      lcd.print("C2");
       break;
     default:
-      lcd.print(prefix + ": n/a  ");
+      lcd.print("-");
       break;
-  }
-  lcd.setCursor(12, line);
+  }  
   lcd.print(formatTime(callStart[callIndex], callIndex == CURRENT ? millis() : callStart[callIndex - 1]));
 }
 
@@ -221,9 +217,9 @@ void processCallFromThermostat(int callFromThermostat) {
     // previous call becomes pre-previous call
     // ...
     //
-    for (int i = 1; i <= 3; i++) {
-      call[4 - i] = call[4 - i - 1];
-      callStart[4 - i] = callStart[4 - i - 1];
+    for (int i = 1; i < CALL_HISTORY; i++) {
+      call[CALL_HISTORY - i] = call[CALL_HISTORY - i - 1];
+      callStart[CALL_HISTORY - i] = callStart[CALL_HISTORY - i - 1];
     }
 
     call[CURRENT] = callFromThermostat;
@@ -257,7 +253,7 @@ void sendMessage() {
 
 String formatTime(unsigned long start, unsigned long end) {
   if (start == -1) {
-    return "n/a";
+    return "";
   }
   unsigned long seconds = (end - start) / 1000;
   unsigned long minutes = seconds / 60;
@@ -267,8 +263,8 @@ String formatTime(unsigned long start, unsigned long end) {
   minutes = minutes % 60;
   hours = hours % 24;
 
-  char timeString[9];  // HH:MM is 5 characters + null terminator
-  sprintf(timeString, "%02lu:%02lu:%02lu", hours, minutes, seconds);
+  char timeString[6];  // HH:MM is 5 characters + null terminator
+  sprintf(timeString, "%02lu:%02lu", hours, minutes);
 
   return String(timeString);
 }
