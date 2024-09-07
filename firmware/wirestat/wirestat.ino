@@ -15,16 +15,16 @@ const uint16_t PIN_THERMOSTAT[] = {
   26 /* W2 */ 
 };
 
-const int DEBOUNCE_INTEVAL_MS = 2000;
+const int DEBOUNCE_INTERVAL_MS = 2000;
 
 long long PIN_LAST_ACTIVE[] = { 
-  -DEBOUNCE_INTEVAL_MS /* G1 */, 
-  -DEBOUNCE_INTEVAL_MS /* G2 */, 
-  -DEBOUNCE_INTEVAL_MS /* G3 */, 
-  -DEBOUNCE_INTEVAL_MS /* Y1 */, 
-  -DEBOUNCE_INTEVAL_MS /* Y2 */, 
-  -DEBOUNCE_INTEVAL_MS /* W1 */, 
-  -DEBOUNCE_INTEVAL_MS /* W2 */ 
+  -DEBOUNCE_INTERVAL_MS /* G1 */, 
+  -DEBOUNCE_INTERVAL_MS /* G2 */, 
+  -DEBOUNCE_INTERVAL_MS /* G3 */, 
+  -DEBOUNCE_INTERVAL_MS /* Y1 */, 
+  -DEBOUNCE_INTERVAL_MS /* Y2 */, 
+  -DEBOUNCE_INTERVAL_MS /* W1 */, 
+  -DEBOUNCE_INTERVAL_MS /* W2 */ 
 };
 
 const int G1 = 0;
@@ -45,25 +45,31 @@ const int LCD_COLUMNS = 20;
 const int LCD_ROWS = 4;
 const int LCD_ADDRESS = 0x27;
 
-// the previous call from the thermostat
-int previousCall = CALL_UNKNOWN;
-// the timestamp when the thermostat started the previous call
-int previousCallMillis = -1;
+const int CURRENT = 0;
+const int PREVIOUS = 1;
+const int PRE_PREVIOUS = 2;
+const int PRE_PRE_PREVIOUS = 3;
 
-// the timestamp when an IR signal was sent the last time
-int irCommandSentMillis = -1;
+// The last 4 calls:
+//
+// calls[0]: current call
+// calls[1]: previous call
+// calls[2]: pre-previous call
+// calls[3]: pre-previous call
+//
+int call[] = { CALL_UNKNOWN, CALL_UNKNOWN, CALL_UNKNOWN, CALL_UNKNOWN };
 
-// the current call from the thermostat
-int currentCall = CALL_UNKNOWN;
-// the timestamp when the thermostat started the current call
-int currentCallMillis = -1;
+// The timestamps when the last 4 calls started:
+//
+// callStart[0]: start of current call
+// callStart[1]: start of previous call
+// callStart[2]: start of pre-previous call
+// callStart[3]: start of pre-pre-previous call
+//
+int callStart[] = { -1, -1, -1, -1 };
 
 IRsend irsend(PIN_IR_TRANSMITTER);
 LiquidCrystal_I2C lcd(0x27, LCD_COLUMNS, LCD_ROWS);
-
-
-
-
 
 const uint16_t MR_COOL_GEN4_OFF[199] = { 4388, 4392,  556, 1596,  530, 542,  532, 1618,  532, 542,  532, 540,  534, 542,  552, 518,  534, 1618,  532, 540,  
   534, 540,  532, 542,  534, 542,  532, 1618,  532, 540,  556, 518,  534, 538,  534, 540,  556, 1594,  530, 1618,  532, 540,  536, 1616,  556, 1592,  554, 
@@ -124,87 +130,18 @@ const uint16_t MR_COOL_GEN4_COOL_75F_FAN_MEDIUM[199] = { 4416, 4366,  558, 1592,
 void setup() {
   irsend.begin();
   Serial.begin(115200, SERIAL_8N1);
-
   for (int i = 0; i < sizeof PIN_THERMOSTAT / sizeof PIN_THERMOSTAT[0]; i++) {
     pinMode(PIN_THERMOSTAT[i], INPUT_PULLUP);
   }
-
   lcd.init();
   lcd.backlight();
-  lcd.clear();
-  lcd.setCursor(0, 0);
-  lcd.print("TSTAT CALL  HH:MM:SS");
-  lcd.setCursor(0, 1);
-  lcd.print("====================");
+  lcd.clear();  
 }
 
-void sendMessage() {
-  if ((millis() - irCommandSentMillis) >= 0) {
-    irCommandSentMillis = millis();
-    if (currentCall == CALL_OFF) {
-      Serial.println("Sending message for CALL_OFF.");
-      irsend.sendRaw(MR_COOL_GEN4_OFF, sizeof(MR_COOL_GEN4_OFF) / sizeof(MR_COOL_GEN4_OFF[0]), 38);
-      return;
-    }
-    if (currentCall == CALL_FAN) {
-      Serial.println("Sending message for FAN.");
-      irsend.sendRaw(MR_COOL_GEN4_FAN_MEDIUM, sizeof(MR_COOL_GEN4_FAN_MEDIUM) / sizeof(MR_COOL_GEN4_FAN_MEDIUM[0]), 38);
-      return;
-    }
-    if (currentCall == CALL_COOL_STAGE_1) {
-      Serial.println("Sending message for COOL_STAGE_1.");
-      irsend.sendRaw(MR_COOL_GEN4_COOL_75F_FAN_LOW, sizeof(MR_COOL_GEN4_COOL_75F_FAN_LOW) / sizeof(MR_COOL_GEN4_COOL_75F_FAN_LOW[0]), 38);
-      return;
-    }
-    if (currentCall == CALL_COOL_STAGE_2) {
-      Serial.println("Sending message for COOL_STAGE_2.");
-      irsend.sendRaw(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM, sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM) / sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM[0]), 38);
-      return;
-    }
-     
-  }
-}
-
-void processCallFromThermostat(int call) {
-  if (currentCall != call) {
-    irCommandSentMillis = -1;
-    previousCall = currentCall;
-    previousCallMillis = currentCallMillis;
-    currentCallMillis = millis();
-    currentCall = call;
-    sendMessage();
-  }
-}
-
-String formatTime(unsigned long start, unsigned long end) {
-  if (start == -1) {
-    return "n/a";
-  }
-  unsigned long seconds = (end - start) / 1000;
-  unsigned long minutes = seconds / 60;
-  unsigned long hours = minutes / 60;
-
-  seconds = seconds % 60;
-  minutes = minutes % 60;
-  hours = hours % 24;
-
-  char timeString[9];  // HH:MM is 5 characters + null terminator
-  sprintf(timeString, "%02lu:%02lu:%02lu", hours, minutes, seconds);
-
-  return String(timeString);
-}
-
-bool checkThermostatPin(int pinIndex) {
-  bool active = 0 == digitalRead(PIN_THERMOSTAT[pinIndex]);
-  if (active) {
-    PIN_LAST_ACTIVE[pinIndex] = millis();
-  }
-  // If there was at least one call within the last ${DEBOUNCE_INTEVAL_MS} milliseconds, consider the pin to be called.
-  //
-  // The AC waveform that is fed into the optoinsulator results in intermittent false negatives when treating
-  // the output as digital signal. The time based heuristic eliminates the need for a capacitor to smoothen the
-  // output signal.
-  return (millis() - PIN_LAST_ACTIVE[pinIndex]) < DEBOUNCE_INTEVAL_MS;
+void loop() {
+  readThermostat();
+  updateDisplay();
+  delay(100);
 }
 
 void readThermostat() {
@@ -235,39 +172,103 @@ void readThermostat() {
 }
 
 void updateDisplay() {
-  lcd.setCursor(0, 2);
-  if (currentCall == CALL_UNKNOWN) {
-    lcd.print("CURR: n/a  ");
-  } else if (currentCall == CALL_OFF) {
-    lcd.print("CURR: OFF  ");
-  } else if (currentCall == CALL_FAN) {
-    lcd.print("CURR: FAN  ");
-  } else if (currentCall == CALL_COOL_STAGE_1) {
-    lcd.print("CURR: COOL1");
-  } else if (currentCall == CALL_COOL_STAGE_2) {
-    lcd.print("CURR: COOL2");
-  }
-  lcd.setCursor(12, 2);
-  lcd.print(formatTime(currentCallMillis, millis()));
-
-  lcd.setCursor(0, 3);
-  if (previousCall == CALL_UNKNOWN) {
-    lcd.print("PREV: n/a  ");
-  } else if (previousCall == CALL_OFF) {
-    lcd.print("PREV: OFF  ");
-  } else if (previousCall == CALL_FAN) {
-    lcd.print("PREV: FAN  ");
-  } else if (previousCall == CALL_COOL_STAGE_1) {
-    lcd.print("PREV: COOL1");
-  } else if (previousCall == CALL_COOL_STAGE_2) {
-    lcd.print("PREV: COOL2");
-  }
-  lcd.setCursor(12, 3);
-  lcd.print(formatTime(previousCallMillis, currentCallMillis));
+  updateLine(0, CURRENT, "CURR");
+  updateLine(1, PREVIOUS, "PREV");
+  updateLine(2, PRE_PREVIOUS, "PPRV");
+  updateLine(3, PRE_PRE_PREVIOUS, "P3RV");
 }
 
-void loop() {
-  readThermostat();
-  updateDisplay();
-  delay(100);
+void updateLine(int line, int callIndex, String prefix) {
+  lcd.setCursor(0, line);
+  switch (call[callIndex]) {
+    case CALL_OFF:
+      lcd.print(prefix + ": OFF  ");
+      break;
+    case CALL_FAN:
+      lcd.print(prefix + ": FAN  ");
+      break;
+    case CALL_COOL_STAGE_1:
+      lcd.print(prefix + ": COOL1");
+      break;
+    case CALL_COOL_STAGE_2:
+      lcd.print(prefix + ": COOL2");
+      break;
+    default:
+      lcd.print(prefix + ": n/a  ");
+      break;
+  }
+  lcd.setCursor(12, line);
+  lcd.print(formatTime(callStart[callIndex], callIndex == CURRENT ? millis() : callStart[callIndex - 1]));
+}
+
+bool checkThermostatPin(int pinIndex) {
+  bool active = 0 == digitalRead(PIN_THERMOSTAT[pinIndex]); 
+  if (active) {
+    PIN_LAST_ACTIVE[pinIndex] = millis();
+  }
+  // If there was at least one call within the last ${DEBOUNCE_INTERVAL_MS} milliseconds, consider the pin to be called.
+  //
+  // The AC waveform that is fed into the optoinsulator results in intermittent false negatives when treating
+  // the output as digital signal. The time based heuristic eliminates the need for a capacitor to smoothen the
+  // output signal.
+  return (millis() - PIN_LAST_ACTIVE[pinIndex]) < DEBOUNCE_INTERVAL_MS;
+}
+
+void processCallFromThermostat(int callFromThermostat) {
+  if (call[CURRENT] != callFromThermostat) {
+    //
+    // current call becomes previous call
+    // previous call becomes pre-previous call
+    // ...
+    //
+    for (int i = 1; i <= 3; i++) {
+      call[4 - i] = call[4 - i - 1];
+      callStart[4 - i] = callStart[4 - i - 1];
+    }
+
+    call[CURRENT] = callFromThermostat;
+    callStart[CURRENT] = millis();
+
+    sendMessage();
+  }
+}
+
+void sendMessage() {
+    switch (call[CURRENT]) {
+      case CALL_OFF:
+        Serial.println("Sending message for CALL_OFF.");
+        irsend.sendRaw(MR_COOL_GEN4_OFF, sizeof(MR_COOL_GEN4_OFF) / sizeof(MR_COOL_GEN4_OFF[0]), 38);
+        break;
+      case CALL_FAN:
+        Serial.println("Sending message for FAN.");
+        irsend.sendRaw(MR_COOL_GEN4_FAN_MEDIUM, sizeof(MR_COOL_GEN4_FAN_MEDIUM) / sizeof(MR_COOL_GEN4_FAN_MEDIUM[0]), 38);
+        break;
+      case CALL_COOL_STAGE_1:
+        Serial.println("Sending message for COOL_STAGE_1.");
+        irsend.sendRaw(MR_COOL_GEN4_COOL_75F_FAN_LOW, sizeof(MR_COOL_GEN4_COOL_75F_FAN_LOW) / sizeof(MR_COOL_GEN4_COOL_75F_FAN_LOW[0]), 38);
+        break;
+      case CALL_COOL_STAGE_2:
+        Serial.println("Sending message for COOL_STAGE_2.");
+        irsend.sendRaw(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM, sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM) / sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM[0]), 38);
+        break;
+
+  }
+}
+
+String formatTime(unsigned long start, unsigned long end) {
+  if (start == -1) {
+    return "n/a";
+  }
+  unsigned long seconds = (end - start) / 1000;
+  unsigned long minutes = seconds / 60;
+  unsigned long hours = minutes / 60;
+
+  seconds = seconds % 60;
+  minutes = minutes % 60;
+  hours = hours % 24;
+
+  char timeString[9];  // HH:MM is 5 characters + null terminator
+  sprintf(timeString, "%02lu:%02lu:%02lu", hours, minutes, seconds);
+
+  return String(timeString);
 }

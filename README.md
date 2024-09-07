@@ -22,6 +22,11 @@ wirestat is not another smart thermostat. It is actually pretty dumb:
 - No app.
 - No internet.
 
+## Is it for sale?
+
+At this point in time, wirestat is a DIY project: All parts have to be sourced and assembled
+yourself.
+
 ## How does it work?
 
 wirestat continuously monitors your thermostat. When it detects a call (e.g., a call for cooling), it relays the command
