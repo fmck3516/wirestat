@@ -26,7 +26,7 @@ wirestat is not another smart thermostat. It is actually pretty dumb:
 
 At this point in time, wirestat is a DIY project: All parts have to be sourced and assembled
 yourself. I might create and sell a small batch at cost some time in the future. Please get in
-touch with me if you would like a copy.
+touch with me (see contact section below) if you are interested in a physical copy.
 
 ## How does it work?
 
@@ -167,7 +167,7 @@ performed reliably throughout. Therefore, I've decided to proceed with the sub-c
 - [Detecting 24V AC with an ESP32](https://www.youtube.com/watch?v=C4kNbcueWMxM)
 - [IR Sending](https://github.com/crankyoldgit/IRremoteESP8266/wiki#ir-sending)
 
-# Contributions
+# Contributions / Contact
 
 Contributions are always welcome! You can either
 
