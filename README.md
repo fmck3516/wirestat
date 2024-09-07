@@ -25,7 +25,8 @@ wirestat is not another smart thermostat. It is actually pretty dumb:
 ## Is it for sale?
 
 At this point in time, wirestat is a DIY project: All parts have to be sourced and assembled
-yourself.
+yourself. I might create and sell a small batch at cost some time in the future. Please get in
+touch with me if you would like a copy.
 
 ## How does it work?
 
