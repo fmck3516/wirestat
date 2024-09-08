@@ -45,21 +45,18 @@ const int LCD_COLUMNS = 20;
 const int LCD_ROWS = 4;
 const int LCD_ADDRESS = 0x27;
 
-const int CURRENT = 0;
-const int PREVIOUS = 1;
-const int PRE_PREVIOUS = 2;
-const int PRE_PRE_PREVIOUS = 3;
-
 // How many of the recently made calls to keep track of.
-const int CALL_HISTORY = 8;
+const int CALL_HISTORY = 10;
 
-// History of the ${CALL_HISTORY} calls. 
-// Index 0 point to the current call.
+// History of the ${CALL_HISTORY} calls.
 int call[CALL_HISTORY];
 
 // The timestamps when the last ${CALL_HISTORY} calls started. 
 // Index 0 point to the start of the current call.
 int callStart[CALL_HISTORY];
+
+// the index of the current call in the ${call} and ${callStart} arrays
+const int CURRENT = 0;
 
 IRsend irsend(PIN_IR_TRANSMITTER);
 LiquidCrystal_I2C lcd(0x27, LCD_COLUMNS, LCD_ROWS);
@@ -166,34 +163,67 @@ void readThermostat() {
   }
 }
 
+// Displays the history of the last 10 calls.
+// The first line always displays the current call.
+// Lines 2-4 paginate through the rest of the call history (with pagination happening every 10 seconds).
+//
+// Initial screen:
+//
+// CURR: ...
+// PREV: ...
+// PPRV: ...
+// P3RqV: ...
+//
+// 10 seconds later:
+//
+// CURR: ...
+// P4RV: ...
+// P5RV: ...
+// P6RV: ...
+//
+// Another 10 seconds later:
+//
+// CURR: ...
+// P7RV: ...
+// P8RV: ...
+// P9RV: ...
+//
 void displayCallHistory() {
-  for (int i = 0; i < CALL_HISTORY; i++) {
-     displayCall(i);
-  }
+  displayCall(0, CURRENT, "CURR");
+  const int paginationIntervalMs = 1000 * 10; // 10 seconds
+  const int page = (millis() / paginationIntervalMs) % 3;
+  for (int i = 0; i < 3; i++) {
+      int callIndex = i + 1 + (3 * page);
+      if (callIndex == 1) {
+        displayCall(i + 1, callIndex, "PREV");
+      } else if (callIndex == 2) {
+        displayCall(i + 1, callIndex, "PPRV");
+      } else {
+        displayCall(i + 1, callIndex, "P" + String(callIndex) + "RV");
+      }
+  } 
 }
 
-void displayCall(int callIndex) {
-  int row = callIndex > 3 ? 11 : 0;
-  int line = callIndex % 4;
-  lcd.setCursor(row, line);
-  lcd.print(String(callIndex) + "=");  
+void displayCall(int line, int callIndex, String prefix) {
+  lcd.setCursor(0, line);
   switch (call[callIndex]) {
     case CALL_OFF:
-      lcd.print("OF");
+      lcd.print(prefix + ": OFF  ");
       break;
     case CALL_FAN:
-      lcd.print("FA");
+      lcd.print(prefix + ": FAN  ");
       break;
     case CALL_COOL_STAGE_1:
-      lcd.print("C1");
+      lcd.print(prefix + ": COOL1");
       break;
     case CALL_COOL_STAGE_2:
-      lcd.print("C2");
+      lcd.print(prefix + ": COOL2");
       break;
     default:
-      lcd.print("-");
+      lcd.print(prefix + ": -    ");
       break;
-  }  
+  }
+  lcd.setCursor(12, line);
   lcd.print(formatTime(callStart[callIndex], callIndex == CURRENT ? millis() : callStart[callIndex - 1]));
 }
 
@@ -253,7 +283,7 @@ void sendMessage() {
 
 String formatTime(unsigned long start, unsigned long end) {
   if (start == -1) {
-    return "";
+    return "        ";
   }
   unsigned long seconds = (end - start) / 1000;
   unsigned long minutes = seconds / 60;
@@ -263,8 +293,8 @@ String formatTime(unsigned long start, unsigned long end) {
   minutes = minutes % 60;
   hours = hours % 24;
 
-  char timeString[6];  // HH:MM is 5 characters + null terminator
-  sprintf(timeString, "%02lu:%02lu", hours, minutes);
+  char timeString[9];  // HH:MM is 5 characters + null terminator
+  sprintf(timeString, "%02lu:%02lu:%02lu", hours, minutes, seconds);
 
   return String(timeString);
 }
