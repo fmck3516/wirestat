@@ -163,45 +163,11 @@ void readThermostat() {
   }
 }
 
-// Displays the history of the last 10 calls.
-// The first line always displays the current call.
-// Lines 2-4 paginate through the rest of the call history (with pagination happening every 10 seconds).
-//
-// Initial screen:
-//
-// CURR: ...
-// PREV: ...
-// PPRV: ...
-// P3RqV: ...
-//
-// 10 seconds later:
-//
-// CURR: ...
-// P4RV: ...
-// P5RV: ...
-// P6RV: ...
-//
-// Another 10 seconds later:
-//
-// CURR: ...
-// P7RV: ...
-// P8RV: ...
-// P9RV: ...
-//
 void displayCallHistory() {
-  displayCall(0, CURRENT, "CURR");
-  const int paginationIntervalMs = 1000 * 10; // 10 seconds
-  const int page = (millis() / paginationIntervalMs) % 3;
-  for (int i = 0; i < 3; i++) {
-      int callIndex = i + 1 + (3 * page);
-      if (callIndex == 1) {
-        displayCall(i + 1, callIndex, "PREV");
-      } else if (callIndex == 2) {
-        displayCall(i + 1, callIndex, "PPRV");
-      } else {
-        displayCall(i + 1, callIndex, "P" + String(callIndex) + "RV");
-      }
-  } 
+  displayCall(0, 0, "CURR");
+  displayCall(1, 1, "PREV");
+  displayCall(2, 2, "PPRV");
+  displayCall(3, 3, "P3RV");
 }
 
 void displayCall(int line, int callIndex, String prefix) {
