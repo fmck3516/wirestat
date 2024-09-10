@@ -46,7 +46,7 @@ const int LCD_ROWS = 4;
 const int LCD_ADDRESS = 0x27;
 
 // How many of the recently made calls to keep track of.
-const int CALL_HISTORY = 10;
+const int CALL_HISTORY = 5;
 
 // History of the ${CALL_HISTORY} calls.
 int call[CALL_HISTORY];
@@ -55,8 +55,11 @@ int call[CALL_HISTORY];
 // Index 0 point to the start of the current call.
 int callStart[CALL_HISTORY];
 
-// the index of the current call in the ${call} and ${callStart} arrays
-const int CURRENT = 0;
+const int CALL_IDX_CAND = 0;
+const int CALL_IDX_CURR = 1;
+const int CALL_IDX_PREV = 2;
+const int CALL_IDX_PPRV = 3;
+const int CALL_IDX_P3RV = 4;
 
 IRsend irsend(PIN_IR_TRANSMITTER);
 LiquidCrystal_I2C lcd(0x27, LCD_COLUMNS, LCD_ROWS);
@@ -164,10 +167,10 @@ void readThermostat() {
 }
 
 void displayCallHistory() {
-  displayCall(0, 0, "CURR");
-  displayCall(1, 1, "PREV");
-  displayCall(2, 2, "PPRV");
-  displayCall(3, 3, "P3RV");
+  displayCall(0, CALL_IDX_CURR, "CURR");
+  displayCall(1, CALL_IDX_PREV, "PREV");
+  displayCall(2, CALL_IDX_PPRV, "PPRV");
+  displayCall(3, CALL_IDX_P3RV, "P3RV");
 }
 
 void displayCall(int line, int callIndex, String prefix) {
@@ -190,7 +193,7 @@ void displayCall(int line, int callIndex, String prefix) {
       break;
   }
   lcd.setCursor(12, line);
-  lcd.print(formatTime(callStart[callIndex], callIndex == CURRENT ? millis() : callStart[callIndex - 1]));
+  lcd.print(formatTime(callStart[callIndex], callIndex == CALL_IDX_CURR ? millis() : callStart[callIndex - 1]));
 }
 
 bool checkThermostatPin(int pinIndex) {
@@ -207,26 +210,29 @@ bool checkThermostatPin(int pinIndex) {
 }
 
 void processCallFromThermostat(int callFromThermostat) {
-  if (call[CURRENT] != callFromThermostat) {
-    //
-    // current call becomes previous call
-    // previous call becomes pre-previous call
-    // ...
-    //
-    for (int i = 1; i < CALL_HISTORY; i++) {
-      call[CALL_HISTORY - i] = call[CALL_HISTORY - i - 1];
-      callStart[CALL_HISTORY - i] = callStart[CALL_HISTORY - i - 1];
-    }
-
-    call[CURRENT] = callFromThermostat;
-    callStart[CURRENT] = millis();
-
-    sendMessage();
+  if (call[CALL_IDX_CAND] != callFromThermostat) {
+      
+    call[CALL_IDX_CAND] = callFromThermostat;
+    callStart[CALL_IDX_CAND] = millis();
+    
+  } else {    
+    if (call[CALL_IDX_CAND] != call[CALL_IDX_CURR]) {
+      // TODO: document
+      if (millis() - callStart[CALL_IDX_CAND] > DEBOUNCE_INTERVAL_MS) {        
+        for (int i = CALL_HISTORY - 1; i >= 2; i--) {
+          call[i] = call[i - 1];
+          callStart[i] = callStart[i - 1];
+        }                
+        call[CALL_IDX_CURR] = call[CALL_IDX_CAND];
+        callStart[CALL_IDX_CURR] = millis();
+        sendMessage();  
+      }
+    }    
   }
 }
 
 void sendMessage() {
-    switch (call[CURRENT]) {
+    switch (call[CALL_IDX_CURR]) {
       case CALL_OFF:
         Serial.println("Sending message for CALL_OFF.");
         irsend.sendRaw(MR_COOL_GEN4_OFF, sizeof(MR_COOL_GEN4_OFF) / sizeof(MR_COOL_GEN4_OFF[0]), 38);
@@ -243,7 +249,6 @@ void sendMessage() {
         Serial.println("Sending message for COOL_STAGE_2.");
         irsend.sendRaw(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM, sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM) / sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM[0]), 38);
         break;
-
   }
 }
 
