@@ -214,11 +214,13 @@ bool checkThermostatPin(int pinIndex) {
   if (active) {
     PIN_LAST_ACTIVE[pinIndex] = millis();
   }
+  //
   // If there was at least one call within the last ${DEBOUNCE_INTERVAL_MS} milliseconds, consider the pin to be called.
   //
   // The AC waveform that is fed into the optoinsulator results in intermittent false negatives when treating
   // the output as digital signal. The time based heuristic eliminates the need for a capacitor to smoothen the
   // output signal.
+  //
   return (millis() - PIN_LAST_ACTIVE[pinIndex]) < DEBOUNCE_INTERVAL_MS;
 }
 
@@ -242,6 +244,9 @@ void processCallFromThermostat(int callFromThermostat) {
   // reads Y1 as active and Y2 as inactive. Shortly afterwards, Y2 reads as active and the intended call (COOL Stage 2)
   // is detected.
   //
+  // Treating newly detected calls as candidates allows wirestat to detect and ignore calls that are only active for 
+  // a very short time.
+  //
   if (call[CALL_IDX_CAND] != callFromThermostat) {
       
     call[CALL_IDX_CAND] = callFromThermostat;
@@ -258,7 +263,7 @@ void processCallFromThermostat(int callFromThermostat) {
     if (promoteCandidateToActive) {
       
       //
-      // Shift the active call down the call history.
+      // Shift the history to make room for the new active call.
       //
       for (int i = CALL_HISTORY - 1; i >= 2; i--) {
         call[i] = call[i - 1];
