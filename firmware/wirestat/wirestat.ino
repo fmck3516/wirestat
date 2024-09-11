@@ -45,18 +45,31 @@ const int LCD_COLUMNS = 20;
 const int LCD_ROWS = 4;
 const int LCD_ADDRESS = 0x27;
 
-// How many of the recently made calls to keep track of.
+//
+// The number of calls to store. Must be at least 2 to store
+// - the candidate call and
+// - the active call
+//
 const int CALL_HISTORY = 5;
 
-// History of the ${CALL_HISTORY} calls.
+//
+// History of the last ${CALL_HISTORY} calls:
+//
+// call[0]: the candidate call (that might be promoted to active or replaced with the next candidate call)
+// call[1]: the active call
+// call[2]: the previous call
+// call[3]: the pre-previous call
+// ...
+//
 int call[CALL_HISTORY];
 
+//
 // The timestamps when the last ${CALL_HISTORY} calls started. 
-// Index 0 point to the start of the current call.
+//
 int callStart[CALL_HISTORY];
 
 const int CALL_IDX_CAND = 0;
-const int CALL_IDX_CURR = 1;
+const int CALL_IDX_ACTIVE = 1;
 const int CALL_IDX_PREV = 2;
 const int CALL_IDX_PPRV = 3;
 const int CALL_IDX_P3RV = 4;
@@ -64,14 +77,14 @@ const int CALL_IDX_P3RV = 4;
 IRsend irsend(PIN_IR_TRANSMITTER);
 LiquidCrystal_I2C lcd(0x27, LCD_COLUMNS, LCD_ROWS);
 
-const uint16_t MR_COOL_GEN4_OFF[199] = { 4388, 4392,  556, 1596,  530, 542,  532, 1618,  532, 542,  532, 540,  534, 542,  552, 518,  534, 1618,  532, 540,  
-  534, 540,  532, 542,  534, 542,  532, 1618,  532, 540,  556, 518,  534, 538,  534, 540,  556, 1594,  530, 1618,  532, 540,  536, 1616,  556, 1592,  554, 
-  520,  532, 1616,  532, 1616,  556, 1594,  554, 1592,  558, 1596,  550, 1592,  556, 1592,  556, 1592,  556, 1594,  556, 1590,  556, 1590,  558, 1590,  
-  558, 1590,  558, 1590,  558, 1590,  560, 1590,  560, 1590,  556, 1590,  560, 1590,  558, 1590,  560, 514,  560, 1590,  558, 1590,  560, 514,  560, 1590,  
-  560, 5180,  4414, 4368,  558, 516,  558, 1590,  584, 490,  584, 1566,  558, 1590,  580, 1566,  582, 1568,  580, 492,  580, 1568,  580, 1568,  580, 1566,  
-  582, 1566,  582, 492,  580, 1566,  582, 1568,  558, 1590,  582, 1568,  558, 516,  556, 516,  556, 1592,  558, 518,  554, 518,  556, 1594,  554, 520,  554, 
-  522,  554, 520,  554, 522,  552, 522,  552, 520,  552, 522,  552, 522,  550, 524,  550, 522,  552, 522,  550, 544,  528, 544,  530, 546,  528, 544,  530, 
-  546,  528, 546,  528, 544,  528, 546,  526, 546,  528, 1622,  526, 550,  524, 548,  526, 1624,  524, 550,  522 }; 
+const uint16_t MR_COOL_GEN4_OFF[199] = { 4388, 4392,  556, 1596,  530, 542,  532, 1618,  532, 542,  532, 540,  534, 542,  552, 518,  534, 1618,  532, 540,
+  534, 540,  532, 542,  534, 542,  532, 1618,  532, 540,  556, 518,  534, 538,  534, 540,  556, 1594,  530, 1618,  532, 540,  536, 1616,  556, 1592,  554,
+  520,  532, 1616,  532, 1616,  556, 1594,  554, 1592,  558, 1596,  550, 1592,  556, 1592,  556, 1592,  556, 1594,  556, 1590,  556, 1590,  558, 1590,
+  558, 1590,  558, 1590,  558, 1590,  560, 1590,  560, 1590,  556, 1590,  560, 1590,  558, 1590,  560, 514,  560, 1590,  558, 1590,  560, 514,  560, 1590,
+  560, 5180,  4414, 4368,  558, 516,  558, 1590,  584, 490,  584, 1566,  558, 1590,  580, 1566,  582, 1568,  580, 492,  580, 1568,  580, 1568,  580, 1566,
+  582, 1566,  582, 492,  580, 1566,  582, 1568,  558, 1590,  582, 1568,  558, 516,  556, 516,  556, 1592,  558, 518,  554, 518,  556, 1594,  554, 520,  554,
+  522,  554, 520,  554, 522,  552, 522,  552, 520,  552, 522,  552, 522,  550, 524,  550, 522,  552, 522,  550, 544,  528, 544,  530, 546,  528, 544,  530,
+  546,  528, 546,  528, 544,  528, 546,  526, 546,  528, 1622,  526, 550,  524, 548,  526, 1624,  524, 550,  522 };
 
 const uint16_t MR_COOL_GEN4_FAN_LOW[199] = { 4410, 4370,  556, 1594,  556, 516,  558, 1592,  556, 516,  558, 518,  556, 518,  558, 516,  556, 1592,  554, 
   1596,  554, 516,  560, 514,  556, 518,  556, 1600,  550, 1596,  552, 518,  556, 518,  558, 516,  556, 1594,  554, 1596,  552, 1596,  552, 1594,  554, 
@@ -167,7 +180,7 @@ void readThermostat() {
 }
 
 void displayCallHistory() {
-  displayCall(0, CALL_IDX_CURR, "CURR");
+  displayCall(0, CALL_IDX_ACTIVE, "CURR");
   displayCall(1, CALL_IDX_PREV, "PREV");
   displayCall(2, CALL_IDX_PPRV, "PPRV");
   displayCall(3, CALL_IDX_P3RV, "P3RV");
@@ -193,7 +206,7 @@ void displayCall(int line, int callIndex, String prefix) {
       break;
   }
   lcd.setCursor(12, line);
-  lcd.print(formatTime(callStart[callIndex], callIndex == CALL_IDX_CURR ? millis() : callStart[callIndex - 1]));
+  lcd.print(formatTime(callStart[callIndex], callIndex == CALL_IDX_ACTIVE ? millis() : callStart[callIndex - 1]));
 }
 
 bool checkThermostatPin(int pinIndex) {
@@ -210,44 +223,83 @@ bool checkThermostatPin(int pinIndex) {
 }
 
 void processCallFromThermostat(int callFromThermostat) {
+  //
+  // A newly detected call from the thermostat is first treated as a "candidate call".
+  //
+  // Let's consider an example to understand the purpose of candidate calls:
+  //
+  // t=  0: thermostat calls for off
+  // t=100: thermostat calls for COOL Stage 2 (Y1 + Y2)
+  //
+  // The AC waveform that is fed into the optoinsulators and the timing of code executed can result in the following
+  // calls from the thermostat to be observed:
+  //
+  // t=  1: wirestat detects call OFF          (all pins inactive)
+  // t=101: wirestat detects call COOL Stage 1 (Y1 active / Y2 inactive)
+  // t=102: wirestat detects call COOL Stage 2 (Y1 active / Y2 active)
+  //
+  // The thermostat never calls for COOL Stage 1. wirestat detects this call because there is a moment in time where it
+  // reads Y1 as active and Y2 as inactive. Shortly afterwards, Y2 reads as active and the intended call (COOL Stage 2)
+  // is detected.
+  //
   if (call[CALL_IDX_CAND] != callFromThermostat) {
       
     call[CALL_IDX_CAND] = callFromThermostat;
     callStart[CALL_IDX_CAND] = millis();
     
   } else {    
-    if (call[CALL_IDX_CAND] != call[CALL_IDX_CURR]) {
-      // TODO: document
-      if (millis() - callStart[CALL_IDX_CAND] > DEBOUNCE_INTERVAL_MS) {        
-        for (int i = CALL_HISTORY - 1; i >= 2; i--) {
-          call[i] = call[i - 1];
-          callStart[i] = callStart[i - 1];
-        }                
-        call[CALL_IDX_CURR] = call[CALL_IDX_CAND];
-        callStart[CALL_IDX_CURR] = millis();
-        sendMessage();  
+
+    //
+    // If the candidate call is detected for a time period longer than ${DEBOUNCE_INTERVAL_MS}, it is promoted to be the
+    // next active call.
+    //
+    bool promoteCandidateToActive = call[CALL_IDX_CAND] != call[CALL_IDX_ACTIVE] &&
+      (millis() - callStart[CALL_IDX_CAND] > DEBOUNCE_INTERVAL_MS);
+    if (promoteCandidateToActive) {
+      for (int i = CALL_HISTORY - 1; i >= 2; i--) {
+        call[i] = call[i - 1];
+        callStart[i] = callStart[i - 1];
       }
+      call[CALL_IDX_ACTIVE] = call[CALL_IDX_CAND];
+      callStart[CALL_IDX_ACTIVE] = millis();
+      sendMessage();
     }    
   }
 }
 
 void sendMessage() {
-    switch (call[CALL_IDX_CURR]) {
+    switch (call[CALL_IDX_ACTIVE]) {
       case CALL_OFF:
         Serial.println("Sending message for CALL_OFF.");
-        irsend.sendRaw(MR_COOL_GEN4_OFF, sizeof(MR_COOL_GEN4_OFF) / sizeof(MR_COOL_GEN4_OFF[0]), 38);
+        irsend.sendRaw(
+          MR_COOL_GEN4_OFF,
+          sizeof(MR_COOL_GEN4_OFF) / sizeof(MR_COOL_GEN4_OFF[0]),
+          38
+        );
         break;
       case CALL_FAN:
         Serial.println("Sending message for FAN.");
-        irsend.sendRaw(MR_COOL_GEN4_FAN_MEDIUM, sizeof(MR_COOL_GEN4_FAN_MEDIUM) / sizeof(MR_COOL_GEN4_FAN_MEDIUM[0]), 38);
+        irsend.sendRaw(
+          MR_COOL_GEN4_FAN_MEDIUM,
+          sizeof(MR_COOL_GEN4_FAN_MEDIUM) / sizeof(MR_COOL_GEN4_FAN_MEDIUM[0]),
+          38
+        );
         break;
       case CALL_COOL_STAGE_1:
         Serial.println("Sending message for COOL_STAGE_1.");
-        irsend.sendRaw(MR_COOL_GEN4_COOL_75F_FAN_LOW, sizeof(MR_COOL_GEN4_COOL_75F_FAN_LOW) / sizeof(MR_COOL_GEN4_COOL_75F_FAN_LOW[0]), 38);
+        irsend.sendRaw(
+          MR_COOL_GEN4_COOL_75F_FAN_LOW,
+          sizeof(MR_COOL_GEN4_COOL_75F_FAN_LOW) / sizeof(MR_COOL_GEN4_COOL_75F_FAN_LOW[0]),
+          38
+        );
         break;
       case CALL_COOL_STAGE_2:
         Serial.println("Sending message for COOL_STAGE_2.");
-        irsend.sendRaw(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM, sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM) / sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM[0]), 38);
+        irsend.sendRaw(
+          MR_COOL_GEN4_COOL_75F_FAN_MEDIUM,
+          sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM) / sizeof(MR_COOL_GEN4_COOL_75F_FAN_MEDIUM[0]),
+          38
+        );
         break;
   }
 }
