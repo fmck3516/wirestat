@@ -256,12 +256,24 @@ void processCallFromThermostat(int callFromThermostat) {
     bool promoteCandidateToActive = call[CALL_IDX_CAND] != call[CALL_IDX_ACTIVE] &&
       (millis() - callStart[CALL_IDX_CAND] > DEBOUNCE_INTERVAL_MS);
     if (promoteCandidateToActive) {
+      
+      //
+      // Shift the active call down the call history.
+      //
       for (int i = CALL_HISTORY - 1; i >= 2; i--) {
         call[i] = call[i - 1];
         callStart[i] = callStart[i - 1];
       }
+      
+      //
+      // Promote the candidate to active.
+      //
       call[CALL_IDX_ACTIVE] = call[CALL_IDX_CAND];
       callStart[CALL_IDX_ACTIVE] = millis();
+      
+      //
+      // Send new active call to the indoor unit.
+      //
       sendMessage();
     }    
   }
