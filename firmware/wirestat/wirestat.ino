@@ -94,13 +94,12 @@ IRsend irsend(PIN_IR_TRANSMITTER);
 LiquidCrystal_I2C lcd(0x27, LCD_COLUMNS, LCD_ROWS);
 
 //
-// The following codes have been recorded using IRRemoteESP8266. The bit for the beep setting
-// was disabled and the checksums were regenerated.
+// The following codes have been recorded using https://github.com/crankyoldgit/IRremoteESP8266
 //
-const uint64_t MR_COOL_GEN4_OFF =                 0xA10C7EFFFFF3; // 0xA10C7EFFFFF3 w beep / 0xA10C7E7FFF0B w/o beep
-const uint64_t MR_COOL_GEN4_FAN_LOW =             0xA18C7EFFFF73; // 0xA18C7EFFFF73 w beep / 0xA18C7E7FFFF3 w/o beep
-const uint64_t MR_COOL_GEN4_COOL_75F_FAN_LOW =    0xA1886DFFFF6D; // 0xA1886DFFFF6D w beep / 0xA1886D7FFFED w/o beep
-const uint64_t MR_COOL_GEN4_COOL_75F_FAN_MEDIUM = 0xA1906DFFFF7D; // 0xA1906DFFFF7D w beep / 0xA1906D7FFFFD w/o beep
+const uint64_t MR_COOL_GEN4_OFF =                 0xA10C7EFFFFF3;
+const uint64_t MR_COOL_GEN4_FAN_LOW =             0xA18C7EFFFF73;
+const uint64_t MR_COOL_GEN4_COOL_75F_FAN_LOW =    0xA1886DFFFF6D;
+const uint64_t MR_COOL_GEN4_COOL_75F_FAN_MEDIUM = 0xA1906DFFFF7D;
 
 void setup() {
   irsend.begin();
