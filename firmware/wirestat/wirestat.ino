@@ -103,7 +103,7 @@ const uint64_t MR_COOL_GEN4_FAN_LOW =             0xA18C7EFFFF73;
 const uint64_t MR_COOL_GEN4_COOL_75F_FAN_LOW =    0xA1886DFFFF6D;
 const uint64_t MR_COOL_GEN4_COOL_75F_FAN_MEDIUM = 0xA1906DFFFF7D;
 const uint64_t MR_COOL_GEN4_HEAT_75F_FAN_LOW =    0xA18B6DFFFF6F;
-const uint64_t MR_COOL_GEN4_HEAT_75F_FAN_MEDIUM = 0xA1936DFFFF7F;
+const uint64_t MR_COOL_GEN4_HEAT_75F_FAN_HIGH =   0xA19B6DFFFF77;
 
 
 void setup() {
@@ -297,7 +297,7 @@ void sendMessage() {
         break;
       case CALL_HEAT_STAGE_2:
         Serial.println("Sending message for HEAT_STAGE_2.");
-        irsend.sendMidea(MR_COOL_GEN4_HEAT_75F_FAN_MEDIUM);
+        irsend.sendMidea(MR_COOL_GEN4_HEAT_75F_FAN_HIGH);
         break;        
   }
 }
