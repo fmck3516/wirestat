@@ -84,13 +84,18 @@ int call[CALL_HISTORY];
 /*
   The timestamps when the calls started. 
 */
-int callStart[CALL_HISTORY];
+unsigned long callStart[CALL_HISTORY];
 
 const int CALL_IDX_CAND = 0;
 const int CALL_IDX_ACTIVE = 1;
 const int CALL_IDX_PREV = 2;
 const int CALL_IDX_PPRV = 3;
 const int CALL_IDX_P3RV = 4;
+
+const unsigned long RESEND_INTERVAL =  1UL *  1UL * 15UL * 60UL * 1000UL; // 15 minutes
+const unsigned long REBOOT_INTERVAL =  7UL * 24UL * 60UL * 60UL * 1000UL; // 7 days
+
+unsigned long lastMessageSentAt = 0;
 
 IRsend irsend(PIN_IR_TRANSMITTER);
 LiquidCrystal_I2C lcd(0x27, LCD_COLUMNS, LCD_ROWS);
@@ -111,7 +116,7 @@ void setup() {
   Serial.begin(115200, SERIAL_8N1);
   for (int i = 0; i < sizeof call / sizeof call[0]; i++) {
     call[i] = CALL_UNKNOWN;
-    callStart[i] = -1;
+    callStart[i] = 0;
   }
   for (int i = 0; i < sizeof PIN_THERMOSTAT / sizeof PIN_THERMOSTAT[0]; i++) {
     pinMode(PIN_THERMOSTAT[i], INPUT_PULLUP);
@@ -124,6 +129,17 @@ void setup() {
 void loop() {
   readThermostat();
   displayCallHistory();
+
+  // reboot every week
+  if (millis() >= REBOOT_INTERVAL) {
+    ESP.restart();
+  }
+
+  // repeat current call every 15 minutes since the transmission is not 100% reliable
+  if (millis() - lastMessageSentAt >= RESEND_INTERVAL) {
+    sendMessage();
+  }
+
   delay(100);
 }
 
@@ -274,6 +290,7 @@ void processCallFromThermostat(int callFromThermostat) {
 }
 
 void sendMessage() {
+    lastMessageSentAt = millis();
     switch (call[CALL_IDX_ACTIVE]) {
       case CALL_OFF:
         Serial.println("Sending message for CALL_OFF.");
@@ -303,7 +320,7 @@ void sendMessage() {
 }
 
 String formatTime(unsigned long start, unsigned long end) {
-  if (start == -1) {
+  if (start == 0) {
     return "        ";
   }
   unsigned long seconds = (end - start) / 1000;
